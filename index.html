@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CubeClimb</title>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Exo+2:wght@300;400;600&display=swap" rel="stylesheet"/>
+</head>
+<body class="dark">
+
+  <!-- ===== SCREENS ===== -->
+
+  <!-- AUTH SCREEN -->
+  <div id="screen-auth" class="screen active">
+    <div class="auth-bg">
+      <div class="cube-logo">
+        <div class="cube-face">
+          <div class="eye" id="logo-eye">
+            <div class="pupil"></div>
+          </div>
+        </div>
+      </div>
+      <h1 class="game-title">CUBE<span>CLIMB</span></h1>
+      <div class="auth-tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">Giriş</button>
+        <button class="tab-btn" onclick="switchTab('register')">Kayıt Ol</button>
+      </div>
+      <div id="tab-login" class="auth-form">
+        <input type="email" id="login-email" placeholder="E-posta" />
+        <input type="password" id="login-pass" placeholder="Şifre" />
+        <button class="btn-primary" onclick="doLogin()">Giriş Yap</button>
+      </div>
+      <div id="tab-register" class="auth-form hidden">
+        <input type="text" id="reg-username" placeholder="Kullanıcı Adı" />
+        <input type="email" id="reg-email" placeholder="E-posta" />
+        <input type="password" id="reg-pass" placeholder="Şifre" />
+        <button class="btn-primary" onclick="doRegister()">Kayıt Ol</button>
+      </div>
+      <div id="auth-error" class="error-msg"></div>
+    </div>
+  </div>
+
+  <!-- MAIN MENU SCREEN -->
+  <div id="screen-menu" class="screen">
+    <div class="menu-bg">
+      <div class="stars" id="stars"></div>
+      <div class="menu-header">
+        <span class="username-display" id="menu-username">@kullanici</span>
+        <span class="points-display" id="menu-points">0 🪙</span>
+      </div>
+      <div class="menu-cube-wrap">
+        <div class="menu-cube" id="menu-cube">
+          <div class="eye">
+            <div class="pupil" id="menu-pupil"></div>
+          </div>
+        </div>
+        <div class="cube-shadow"></div>
+      </div>
+      <h2 class="menu-title">CUBE<span>CLIMB</span></h2>
+      <div class="menu-buttons">
+        <button class="menu-btn btn-start" onclick="showScreen('screen-game'); startGame()">
+          <span class="btn-icon">▶</span> BAŞLA
+        </button>
+        <button class="menu-btn btn-finance" onclick="showScreen('screen-finance')">
+          <span class="btn-icon">💰</span> FİNANS
+        </button>
+        <button class="menu-btn btn-char" onclick="showScreen('screen-character')">
+          <span class="btn-icon">🎨</span> KARAKTER
+        </button>
+        <button class="menu-btn btn-settings" onclick="showScreen('screen-settings')">
+          <span class="btn-icon">⚙️</span> AYARLAR
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="screen-game" class="screen">
+    <div class="game-ui">
+      <button class="back-btn" onclick="stopGame(); showScreen('screen-menu')">✕</button>
+      <div class="game-stats">
+        <span id="hud-platform">Platform: 0</span>
+        <span id="hud-points">🪙 0</span>
+        <span id="hud-level">Lvl 1</span>
+      </div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div id="game-over-panel" class="hidden">
+      <div class="go-box">
+        <div class="go-eye-wrap">
+          <div class="go-cube">
+            <div class="eye dead"><div class="pupil"></div></div>
+          </div>
+        </div>
+        <h2>GAME OVER</h2>
+        <p id="go-score">0 Platform | 0 Puan</p>
+        <button class="btn-primary" onclick="restartGame()">Tekrar Oyna</button>
+        <button class="btn-secondary" onclick="stopGame(); showScreen('screen-menu')">Ana Menü</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARACTER SCREEN -->
+  <div id="screen-character" class="screen">
+    <div class="inner-screen">
+      <button class="back-btn" onclick="showScreen('screen-menu')">← Geri</button>
+      <h2 class="screen-title">KARAKTER</h2>
+      <div class="char-preview">
+        <div class="preview-cube" id="preview-cube">
+          <div class="eye"><div class="pupil" id="preview-pupil"></div></div>
+        </div>
+      </div>
+      <h3 style="color:var(--accent);margin:12px 0 8px;font-family:'Orbitron'">Renk Seç</h3>
+      <div class="color-grid" id="color-grid">
+        <!-- filled by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS SCREEN -->
+  <div id="screen-settings" class="screen">
+    <div class="inner-screen">
+      <button class="back-btn" onclick="showScreen('screen-menu')">← Geri</button>
+      <h2 class="screen-title">AYARLAR</h2>
+
+      <div class="setting-group">
+        <label>Kullanıcı Adı</label>
+        <div class="row-input">
+          <input type="text" id="settings-username" placeholder="Yeni kullanıcı adı"/>
+          <button class="btn-small" onclick="saveUsername()">Kaydet</button>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <label>Tema</label>
+        <div class="toggle-row">
+          <span>☀️ Açık</span>
+          <label class="switch">
+            <input type="checkbox" id="dark-toggle" checked onchange="toggleDark(this)"/>
+            <span class="slider"></span>
+          </label>
+          <span>🌙 Koyu</span>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <label>Nasıl Oynanır?</label>
+        <div class="howto-box">
+          <p>🖱️ <b>Tek tıkla</b> → Karakter 1 kez zıplar</p>
+          <p>🖱️🖱️ <b>Çift tıkla</b> → Karakter 2 kez zıplar</p>
+          <p>🧱 Platformlardan düşme, yukarı tırman!</p>
+          <p>🪙 Her platform geçişinde puan kazan</p>
+          <p>📈 50 platform = 1000 puan = 0.1 TL</p>
+          <p>⚡ Oyun giderek hızlanır ve zorlaşır!</p>
+        </div>
+      </div>
+
+      <div class="setting-group">
+        <button class="btn-danger" onclick="doLogout()">Çıkış Yap</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FINANCE SCREEN -->
+  <div id="screen-finance" class="screen">
+    <div class="inner-screen">
+      <button class="back-btn" onclick="showScreen('screen-menu')">← Geri</button>
+      <h2 class="screen-title">FİNANS</h2>
+
+      <div class="finance-card">
+        <div class="fin-label">Toplam Puan</div>
+        <div class="fin-value" id="fin-points">0 🪙</div>
+        <div class="fin-sub" id="fin-tl">≈ 0.00 TL</div>
+      </div>
+
+      <div class="finance-card rate-card">
+        <div class="fin-label">Dönüşüm Oranı</div>
+        <div class="fin-value small">50 Platform = 1000 Puan</div>
+        <div class="fin-sub">1000 Puan = 0.1 TL</div>
+      </div>
+
+      <div class="setting-group">
+        <label>Çekim Talebi</label>
+        <input type="number" id="withdraw-amount" placeholder="Çekmek istediğiniz puan (min 10000)" min="10000"/>
+        <input type="text" id="withdraw-iban" placeholder="IBAN veya Papara No"/>
+        <button class="btn-primary" onclick="requestWithdraw()" style="margin-top:10px">Çekim Talebi Gönder</button>
+      </div>
+
+      <div id="withdraw-history" class="withdraw-list">
+        <h3>Geçmiş Talepler</h3>
+        <div id="withdraw-items">Yükleniyor...</div>
+      </div>
+
+      <div id="fin-msg" class="error-msg"></div>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
