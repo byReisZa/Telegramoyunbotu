@@ -1,160 +1,201 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="theme-color" content="#0d0d14"/>
   <title>Alimesaj</title>
-  <link rel="stylesheet" href="style.css" />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="style.css"/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 </head>
 <body>
 
-  <!-- REGISTER SCREEN -->
-  <div id="registerScreen" class="screen active">
-    <div class="register-bg">
-      <div class="orb orb1"></div>
-      <div class="orb orb2"></div>
-      <div class="orb orb3"></div>
+<!-- SPLASH -->
+<div id="splashScreen" class="page active">
+  <div class="splash-bg">
+    <div class="sp-orb o1"></div>
+    <div class="sp-orb o2"></div>
+  </div>
+  <div class="splash-body">
+    <div class="logo-wrap"><i class="fa-solid fa-bolt"></i></div>
+    <div class="logo-text">Alimesaj</div>
+    <div class="logo-sub">Hızlı · Güvenli · Anlık</div>
+  </div>
+  <div class="splash-footer">
+    <div class="loader-bar"><div class="loader-fill"></div></div>
+  </div>
+</div>
+
+<!-- REGISTER -->
+<div id="registerPage" class="page">
+  <div class="auth-wrap">
+    <div class="auth-head">
+      <div class="logo-wrap sm"><i class="fa-solid fa-bolt"></i></div>
+      <h2>Hesap Oluştur</h2>
+      <p>Birkaç saniyede başla</p>
     </div>
-    <div class="register-card">
-      <div class="brand">
-        <div class="brand-icon">
-          <i class="fa-solid fa-bolt"></i>
-        </div>
-        <h1>Alimesaj</h1>
-        <p>Anlık mesajlaşmanın yeni adresi</p>
-      </div>
-      <div class="form-group">
-        <label>Adın</label>
-        <div class="input-wrap">
+    <div class="auth-body">
+      <div class="field-row">
+        <label>Adın Soyadın</label>
+        <div class="field-box">
           <i class="fa-solid fa-user"></i>
-          <input type="text" id="regName" placeholder="Adın ve Soyadın" autocomplete="off" />
+          <input type="text" id="regName" placeholder="Ali Yılmaz" autocomplete="name" inputmode="text"/>
         </div>
       </div>
-      <div class="form-group">
+      <div class="field-row">
         <label>Telefon Numarası</label>
-        <div class="input-wrap">
+        <div class="field-box">
           <i class="fa-solid fa-phone"></i>
-          <input type="tel" id="regPhone" placeholder="+90 555 000 00 00" autocomplete="off" />
+          <input type="tel" id="regPhone" placeholder="+90 5XX XXX XX XX" autocomplete="tel" inputmode="tel"/>
         </div>
       </div>
-      <button class="btn-primary" id="registerBtn">
-        <span>Başla</span>
-        <i class="fa-solid fa-arrow-right"></i>
-      </button>
-      <p class="login-hint">Zaten hesabın var mı? <span id="goLogin">Giriş yap</span></p>
+      <button class="cta-btn" id="registerBtn">Devam Et <i class="fa-solid fa-arrow-right"></i></button>
+      <div class="switch-link">Hesabın var mı? <span id="goLogin">Giriş Yap</span></div>
     </div>
   </div>
+</div>
 
-  <!-- LOGIN SCREEN -->
-  <div id="loginScreen" class="screen">
-    <div class="register-bg">
-      <div class="orb orb1"></div>
-      <div class="orb orb2"></div>
+<!-- LOGIN -->
+<div id="loginPage" class="page">
+  <div class="auth-wrap">
+    <div class="auth-head">
+      <div class="logo-wrap sm"><i class="fa-solid fa-bolt"></i></div>
+      <h2>Tekrar Hoş Geldin</h2>
+      <p>Telefonunla giriş yap</p>
     </div>
-    <div class="register-card">
-      <div class="brand">
-        <div class="brand-icon">
-          <i class="fa-solid fa-bolt"></i>
-        </div>
-        <h1>Alimesaj</h1>
-        <p>Tekrar hoş geldin</p>
-      </div>
-      <div class="form-group">
+    <div class="auth-body">
+      <div class="field-row">
         <label>Telefon Numarası</label>
-        <div class="input-wrap">
+        <div class="field-box">
           <i class="fa-solid fa-phone"></i>
-          <input type="tel" id="loginPhone" placeholder="+90 555 000 00 00" autocomplete="off" />
+          <input type="tel" id="loginPhone" placeholder="+90 5XX XXX XX XX" autocomplete="tel" inputmode="tel"/>
         </div>
       </div>
-      <button class="btn-primary" id="loginBtn">
-        <span>Giriş Yap</span>
-        <i class="fa-solid fa-arrow-right"></i>
-      </button>
-      <p class="login-hint">Hesabın yok mu? <span id="goRegister">Kayıt ol</span></p>
+      <button class="cta-btn" id="loginBtn">Giriş Yap <i class="fa-solid fa-arrow-right"></i></button>
+      <div class="switch-link">Hesabın yok mu? <span id="goRegister">Kayıt Ol</span></div>
     </div>
   </div>
+</div>
 
-  <!-- MAIN APP -->
-  <div id="appScreen" class="screen">
-    <div class="app-layout">
+<!-- MAIN APP -->
+<div id="appPage" class="page">
 
-      <!-- SIDEBAR -->
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <div class="sidebar-brand">
-            <i class="fa-solid fa-bolt"></i>
-            <span>Alimesaj</span>
-          </div>
-          <button class="icon-btn" id="logoutBtn" title="Çıkış Yap">
-            <i class="fa-solid fa-right-from-bracket"></i>
-          </button>
+  <!-- VIEW: CHATS LIST -->
+  <div id="viewChats" class="view active-view">
+    <div class="appbar">
+      <div class="appbar-left">
+        <div class="av" id="myAv">A</div>
+        <div>
+          <div class="appbar-title">Sohbetler</div>
+          <div class="appbar-sub" id="myPhone2">—</div>
         </div>
-
-        <div class="user-profile-mini">
-          <div class="avatar" id="myAvatar">A</div>
-          <div>
-            <div class="user-name" id="myName">—</div>
-            <div class="user-phone" id="myPhone">—</div>
-          </div>
-        </div>
-
-        <div class="search-section">
-          <div class="search-wrap">
-            <i class="fa-solid fa-magnifying-glass"></i>
-            <input type="tel" id="searchPhone" placeholder="Telefon numarası ara..." autocomplete="off" />
-          </div>
-          <button class="btn-search" id="searchBtn">
-            <i class="fa-solid fa-user-plus"></i>
-          </button>
-        </div>
-
-        <div class="conversations-list" id="conversationsList">
-          <div class="empty-state">
-            <i class="fa-solid fa-comments"></i>
-            <p>Henüz sohbet yok</p>
-            <small>Bir numara ara ve mesajlaş</small>
-          </div>
-        </div>
-      </aside>
-
-      <!-- CHAT AREA -->
-      <main class="chat-area" id="chatArea">
-        <div class="chat-welcome">
-          <div class="welcome-icon">
-            <i class="fa-solid fa-bolt"></i>
-          </div>
-          <h2>Alimesaj'a Hoş Geldin</h2>
-          <p>Sol taraftan bir kişi seç veya telefon numarasıyla ara</p>
-        </div>
-      </main>
-
-    </div>
-  </div>
-
-  <!-- TOAST -->
-  <div id="toast" class="toast"></div>
-
-  <!-- CONTEXT MENU -->
-  <div id="contextMenu" class="context-menu">
-    <button id="ctxEdit"><i class="fa-solid fa-pen"></i> Düzenle</button>
-    <button id="ctxDelete"><i class="fa-solid fa-trash"></i> Sil</button>
-    <button id="ctxClose"><i class="fa-solid fa-xmark"></i> Kapat</button>
-  </div>
-
-  <!-- EDIT MODAL -->
-  <div id="editModal" class="modal-overlay">
-    <div class="modal-card">
-      <h3>Mesajı Düzenle</h3>
-      <textarea id="editInput" rows="3"></textarea>
-      <div class="modal-actions">
-        <button class="btn-cancel" id="editCancel">İptal</button>
-        <button class="btn-primary small" id="editSave">Kaydet</button>
+      </div>
+      <div class="appbar-right">
+        <button class="icon-btn" id="searchToggle"><i class="fa-solid fa-magnifying-glass"></i></button>
+        <button class="icon-btn danger" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i></button>
       </div>
     </div>
+
+    <!-- collapsible search -->
+    <div id="searchBar" class="search-bar collapsed">
+      <div class="search-inner">
+        <i class="fa-solid fa-phone"></i>
+        <input type="tel" id="searchPhone" placeholder="Telefon numarası gir..." inputmode="tel" autocomplete="off"/>
+        <button id="searchBtn"><i class="fa-solid fa-user-plus"></i></button>
+      </div>
+    </div>
+
+    <div id="chatsList" class="chats-list">
+      <div class="empty-state">
+        <div class="empty-ico"><i class="fa-regular fa-comments"></i></div>
+        <div class="empty-t">Henüz sohbet yok</div>
+        <div class="empty-s">Yeni sohbet başlatmak için<br/>sağ alttaki butona bas</div>
+      </div>
+    </div>
+
+    <button class="fab" id="fabBtn"><i class="fa-solid fa-pen-to-square"></i></button>
   </div>
 
-  <script src="app.js" type="module"></script>
+  <!-- VIEW: CHAT -->
+  <div id="viewChat" class="view">
+    <div class="chat-appbar">
+      <button class="back-btn" id="backBtn"><i class="fa-solid fa-chevron-left"></i></button>
+      <div class="av sm" id="chatAv">A</div>
+      <div class="chat-appbar-info">
+        <div class="chat-name" id="chatName">—</div>
+        <div class="chat-status"><span class="online-dot"></span> aktif</div>
+      </div>
+    </div>
+
+    <div class="messages-area" id="messagesArea"></div>
+
+    <div class="msg-input-bar">
+      <div class="msg-input-wrap">
+        <textarea id="msgInput" rows="1" placeholder="Mesaj yaz..."></textarea>
+      </div>
+      <button class="send-btn" id="sendBtn"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+  </div>
+
+</div>
+
+<!-- BOTTOM SHEET: Message Options -->
+<div id="ctxOverlay" class="overlay hidden">
+  <div id="ctxSheet" class="bsheet">
+    <div class="bsheet-handle"></div>
+    <div class="bsheet-title">Mesaj Seçenekleri</div>
+    <button class="bsheet-row" id="bsEdit">
+      <div class="bsheet-icon blue"><i class="fa-solid fa-pen"></i></div>
+      <div class="bsheet-label">Düzenle</div>
+    </button>
+    <button class="bsheet-row red" id="bsDelete">
+      <div class="bsheet-icon red"><i class="fa-solid fa-trash"></i></div>
+      <div class="bsheet-label">Sil</div>
+    </button>
+    <button class="bsheet-row gray" id="bsClose">
+      <div class="bsheet-label center">İptal</div>
+    </button>
+  </div>
+</div>
+
+<!-- BOTTOM SHEET: Edit Message -->
+<div id="editOverlay" class="overlay hidden">
+  <div id="editSheet" class="bsheet">
+    <div class="bsheet-handle"></div>
+    <div class="bsheet-title">Mesajı Düzenle</div>
+    <div class="edit-box">
+      <textarea id="editInput" rows="4" placeholder="Düzenlenen mesaj..."></textarea>
+    </div>
+    <div class="edit-btns">
+      <button class="edit-cancel" id="editCancel">İptal</button>
+      <button class="edit-save" id="editSave">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM SHEET: New Chat (FAB) -->
+<div id="newOverlay" class="overlay hidden">
+  <div id="newSheet" class="bsheet">
+    <div class="bsheet-handle"></div>
+    <div class="bsheet-title">Yeni Sohbet</div>
+    <p class="bsheet-desc">Kişinin telefon numarasını gir</p>
+    <div class="field-box mt">
+      <i class="fa-solid fa-phone"></i>
+      <input type="tel" id="newPhone" placeholder="+90 5XX XXX XX XX" inputmode="tel" autocomplete="off"/>
+    </div>
+    <button class="cta-btn mt" id="newGo">Sohbeti Başlat <i class="fa-solid fa-arrow-right"></i></button>
+    <button class="bsheet-row gray mt4" id="newCancel">
+      <div class="bsheet-label center">İptal</div>
+    </button>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast" class="toast"></div>
+
+<script src="app.js" type="module"></script>
 </body>
 </html>
