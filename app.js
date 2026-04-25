@@ -1,4 +1,4 @@
-// ===== FIREBASE SETUP =====
+// ===== FIREBASE =====
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   getDatabase, ref, set, get, push, onValue, off,
@@ -12,278 +12,325 @@ const firebaseConfig = {
   projectId: "telegramapp-b0bce",
   storageBucket: "telegramapp-b0bce.firebasestorage.app",
   messagingSenderId: "707008927852",
-  appId: "1:707008927852:web:ed6bca0a6bca3c2bcd06049",
+  appId: "1:707008927852:web:ed6bca0a6ca3c2bcd06049",
   measurementId: "G-KGZ45KGMBM"
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getDatabase(app);
+const db  = getDatabase(app);
 
 // ===== STATE =====
-let currentUser = null;     // { uid, name, phone }
-let activeConvId = null;    // conversation ID
-let activePartner = null;   // { uid, name, phone }
-let msgListener = null;     // Firebase listener ref
-let convListener = null;    // conversations listener
-let selectedMsgId = null;   // for context menu
+let currentUser  = null;
+let activeConvId = null;
+let activePartner= null;
+let msgListenerRef = null;
+let convListenerRef= null;
+let selectedMsgId  = null;
+let selectedMsgTxt = null;
 
-// ===== HELPERS =====
-const phoneToUid = (phone) => phone.replace(/\D/g, "");
+// ===== UTILS =====
+const esc = s => String(s)
+  .replace(/&/g,"&amp;").replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 
-const formatPhone = (raw) => {
-  const digits = raw.replace(/\D/g, "");
-  return "+" + digits;
+const phoneToUid  = p => p.replace(/\D/g,"");
+const normPhone   = p => "+" + p.replace(/\D/g,"");
+const avatarLetter= n => (n||"?")[0].toUpperCase();
+const convId      = (a,b) => [a,b].sort().join("_");
+
+const timeStr = ts => {
+  if (!ts) return "";
+  return new Date(ts).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"});
 };
-
-const timeStr = (ts) => {
+const dateStr = ts => {
   if (!ts) return "";
   const d = new Date(ts);
-  return d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+  const t = new Date(); const y = new Date(t); y.setDate(t.getDate()-1);
+  if (d.toDateString()===t.toDateString()) return "Bugün";
+  if (d.toDateString()===y.toDateString()) return "Dün";
+  return d.toLocaleDateString("tr-TR",{day:"numeric",month:"long"});
 };
-
-const dateStr = (ts) => {
-  if (!ts) return "";
-  const d = new Date(ts);
-  const today = new Date();
-  const yesterday = new Date(today);
-  yesterday.setDate(today.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return "Bugün";
-  if (d.toDateString() === yesterday.toDateString()) return "Dün";
-  return d.toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" });
-};
-
-const convId = (uid1, uid2) => [uid1, uid2].sort().join("_");
-
-const avatarLetter = (name) => (name || "?")[0].toUpperCase();
 
 // ===== TOAST =====
-let toastTimer;
-function showToast(msg, type = "") {
-  const t = document.getElementById("toast");
-  t.textContent = msg;
-  t.className = "toast show" + (type ? " " + type : "");
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { t.className = "toast"; }, 3000);
+let _toastTimer;
+function toast(msg, type="") {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "toast show" + (type ? " "+type : "");
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.className="toast", 2800);
 }
 
-// ===== SCREEN SWITCHER =====
-function showScreen(id) {
-  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+// ===== PAGE / VIEW =====
+function showPage(id) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
   document.getElementById(id).classList.add("active");
 }
+
+function showView(id) {
+  const views = document.querySelectorAll(".view");
+  views.forEach(v => {
+    v.classList.remove("active-view","slide-left");
+  });
+  const target = document.getElementById(id);
+  if (id === "viewChat") {
+    document.getElementById("viewChats").classList.add("slide-left");
+    target.classList.add("active-view");
+  } else {
+    target.classList.add("active-view");
+  }
+}
+
+// ===== BOTTOM SHEETS =====
+function openSheet(overlayId) {
+  const el = document.getElementById(overlayId);
+  el.classList.remove("hidden");
+  requestAnimationFrame(() => el.classList.add("visible"));
+}
+function closeSheet(overlayId) {
+  const el = document.getElementById(overlayId);
+  el.classList.remove("visible");
+  setTimeout(() => el.classList.add("hidden"), 280);
+}
+
+// Tap outside to close
+["ctxOverlay","editOverlay","newOverlay"].forEach(id => {
+  document.getElementById(id).addEventListener("click", function(e){
+    if (e.target === this) closeSheet(id);
+  });
+});
+
+// ===== SPLASH =====
+setTimeout(() => {
+  const saved = localStorage.getItem("alimesaj_user");
+  if (saved) {
+    try { currentUser = JSON.parse(saved); initApp(); }
+    catch { showPage("registerPage"); }
+  } else {
+    showPage("registerPage");
+  }
+}, 1900);
 
 // ===== REGISTER =====
 document.getElementById("registerBtn").addEventListener("click", async () => {
   const name = document.getElementById("regName").value.trim();
-  const phoneRaw = document.getElementById("regPhone").value.trim();
-  if (!name) return showToast("Adını gir", "error");
-  if (!phoneRaw) return showToast("Telefon numarasını gir", "error");
+  const raw  = document.getElementById("regPhone").value.trim();
+  if (!name) return toast("Adını gir", "err");
+  if (!raw)  return toast("Telefon numarası gir", "err");
 
-  const phone = formatPhone(phoneRaw);
-  const uid = phoneToUid(phone);
+  const phone = normPhone(raw);
+  const uid   = phoneToUid(phone);
 
   try {
-    const snap = await get(ref(db, `users/${uid}`));
-    if (snap.exists()) {
-      return showToast("Bu numara zaten kayıtlı. Giriş yap.", "error");
-    }
-    await set(ref(db, `users/${uid}`), { name, phone, uid, createdAt: Date.now() });
+    const snap = await get(ref(db,`users/${uid}`));
+    if (snap.exists()) return toast("Bu numara kayıtlı. Giriş yap.", "err");
+    await set(ref(db,`users/${uid}`), { uid, name, phone, createdAt: Date.now() });
     currentUser = { uid, name, phone };
     localStorage.setItem("alimesaj_user", JSON.stringify(currentUser));
     initApp();
-  } catch (e) {
-    showToast("Hata: " + e.message, "error");
-  }
+  } catch(e) { toast("Hata: " + e.message, "err"); }
 });
 
-// ===== LOGIN =====
 document.getElementById("loginBtn").addEventListener("click", async () => {
-  const phoneRaw = document.getElementById("loginPhone").value.trim();
-  if (!phoneRaw) return showToast("Telefon numarasını gir", "error");
-  const phone = formatPhone(phoneRaw);
-  const uid = phoneToUid(phone);
+  const raw = document.getElementById("loginPhone").value.trim();
+  if (!raw) return toast("Telefon numarası gir","err");
+  const phone = normPhone(raw);
+  const uid   = phoneToUid(phone);
   try {
-    const snap = await get(ref(db, `users/${uid}`));
-    if (!snap.exists()) return showToast("Kullanıcı bulunamadı. Önce kayıt ol.", "error");
+    const snap = await get(ref(db,`users/${uid}`));
+    if (!snap.exists()) return toast("Kullanıcı bulunamadı. Önce kayıt ol.","err");
     currentUser = snap.val();
     localStorage.setItem("alimesaj_user", JSON.stringify(currentUser));
     initApp();
-  } catch (e) {
-    showToast("Hata: " + e.message, "error");
-  }
+  } catch(e) { toast("Hata: " + e.message,"err"); }
 });
 
-document.getElementById("goLogin").addEventListener("click", () => showScreen("loginScreen"));
-document.getElementById("goRegister").addEventListener("click", () => showScreen("registerScreen"));
+document.getElementById("goLogin").addEventListener("click", () => showPage("loginPage"));
+document.getElementById("goRegister").addEventListener("click", () => showPage("registerPage"));
+
+// ===== INIT APP =====
+function initApp() {
+  document.getElementById("myAv").textContent    = avatarLetter(currentUser.name);
+  document.getElementById("myPhone2").textContent= currentUser.phone;
+  showPage("appPage");
+  showView("viewChats");
+  loadConversations();
+}
 
 // ===== LOGOUT =====
 document.getElementById("logoutBtn").addEventListener("click", () => {
   if (!confirm("Çıkış yapmak istiyor musun?")) return;
+  if (convListenerRef) off(convListenerRef);
+  if (msgListenerRef) off(msgListenerRef);
   localStorage.removeItem("alimesaj_user");
   location.reload();
 });
 
-// ===== INIT APP =====
-function initApp() {
-  document.getElementById("myName").textContent = currentUser.name;
-  document.getElementById("myPhone").textContent = currentUser.phone;
-  document.getElementById("myAvatar").textContent = avatarLetter(currentUser.name);
-  showScreen("appScreen");
-  loadConversations();
-}
-
-// ===== SEARCH USER =====
-document.getElementById("searchBtn").addEventListener("click", searchUser);
-document.getElementById("searchPhone").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") searchUser();
+// ===== SEARCH TOGGLE =====
+document.getElementById("searchToggle").addEventListener("click", () => {
+  const bar = document.getElementById("searchBar");
+  const expanded = bar.classList.contains("expanded");
+  if (expanded) {
+    bar.classList.replace("expanded","collapsed");
+  } else {
+    bar.classList.replace("collapsed","expanded");
+    setTimeout(() => document.getElementById("searchPhone").focus(), 150);
+  }
 });
 
-async function searchUser() {
-  const phoneRaw = document.getElementById("searchPhone").value.trim();
-  if (!phoneRaw) return showToast("Numara gir", "error");
-  const phone = formatPhone(phoneRaw);
-  const uid = phoneToUid(phone);
+// ===== SEARCH (topbar) =====
+document.getElementById("searchBtn").addEventListener("click", doSearch);
+document.getElementById("searchPhone").addEventListener("keydown", e => {
+  if (e.key === "Enter") doSearch();
+});
 
-  if (uid === currentUser.uid) return showToast("Kendinle konuşamazsın 😄", "error");
-
+async function doSearch() {
+  const raw = document.getElementById("searchPhone").value.trim();
+  if (!raw) return toast("Numara gir","err");
+  const phone = normPhone(raw);
+  const uid   = phoneToUid(phone);
+  if (uid === currentUser.uid) return toast("Kendinle konuşamazsın 😄","err");
   try {
-    const snap = await get(ref(db, `users/${uid}`));
-    if (!snap.exists()) return showToast("Kullanıcı bulunamadı", "error");
-    const partner = snap.val();
+    const snap = await get(ref(db,`users/${uid}`));
+    if (!snap.exists()) return toast("Kullanıcı bulunamadı","err");
     document.getElementById("searchPhone").value = "";
-    openChat(partner);
-  } catch (e) {
-    showToast("Hata: " + e.message, "error");
-  }
+    document.getElementById("searchBar").classList.replace("expanded","collapsed");
+    openChat(snap.val());
+  } catch(e) { toast("Hata: " + e.message,"err"); }
 }
+
+// ===== FAB =====
+document.getElementById("fabBtn").addEventListener("click", () => openSheet("newOverlay"));
+document.getElementById("newCancel").addEventListener("click", () => closeSheet("newOverlay"));
+document.getElementById("newGo").addEventListener("click", async () => {
+  const raw = document.getElementById("newPhone").value.trim();
+  if (!raw) return toast("Numara gir","err");
+  const phone = normPhone(raw);
+  const uid   = phoneToUid(phone);
+  if (uid === currentUser.uid) return toast("Kendinle konuşamazsın 😄","err");
+  try {
+    const snap = await get(ref(db,`users/${uid}`));
+    if (!snap.exists()) return toast("Kullanıcı bulunamadı","err");
+    document.getElementById("newPhone").value = "";
+    closeSheet("newOverlay");
+    openChat(snap.val());
+  } catch(e) { toast("Hata: " + e.message,"err"); }
+});
 
 // ===== LOAD CONVERSATIONS =====
 function loadConversations() {
-  const convRef = ref(db, `userConversations/${currentUser.uid}`);
-  if (convListener) off(convRef);
+  if (convListenerRef) off(convListenerRef);
+  convListenerRef = ref(db, `userConversations/${currentUser.uid}`);
 
-  convListener = onValue(convRef, async (snap) => {
-    const data = snap.val();
-    const list = document.getElementById("conversationsList");
+  onValue(convListenerRef, async snap => {
+    const list = document.getElementById("chatsList");
     list.innerHTML = "";
+    const data = snap.val();
 
     if (!data) {
       list.innerHTML = `
         <div class="empty-state">
-          <i class="fa-solid fa-comments"></i>
-          <p>Henüz sohbet yok</p>
-          <small>Bir numara ara ve mesajlaş</small>
+          <div class="empty-ico"><i class="fa-regular fa-comments"></i></div>
+          <div class="empty-t">Henüz sohbet yok</div>
+          <div class="empty-s">Yeni sohbet başlatmak için<br/>sağ alttaki butona bas</div>
         </div>`;
       return;
     }
 
-    const convArray = Object.entries(data).map(([cid, info]) => ({ cid, ...info }));
-    convArray.sort((a, b) => (b.lastAt || 0) - (a.lastAt || 0));
+    const arr = Object.entries(data)
+      .map(([cid,info]) => ({cid,...info}))
+      .sort((a,b) => (b.lastAt||0) - (a.lastAt||0));
 
-    for (const conv of convArray) {
+    for (const conv of arr) {
       try {
-        const uSnap = await get(ref(db, `users/${conv.partnerUid}`));
+        const uSnap = await get(ref(db,`users/${conv.partnerUid}`));
         if (!uSnap.exists()) continue;
         const partner = uSnap.val();
-        const item = buildConvItem(conv.cid, partner, conv.lastMsg, conv.lastAt);
-        list.appendChild(item);
-      } catch (_) { /* skip */ }
+        list.appendChild(buildChatItem(conv.cid, partner, conv.lastMsg, conv.lastAt));
+      } catch(_) {}
     }
   });
 }
 
-function buildConvItem(cid, partner, lastMsg, lastAt) {
+function buildChatItem(cid, partner, lastMsg, lastAt) {
   const div = document.createElement("div");
-  div.className = "conv-item" + (cid === activeConvId ? " active" : "");
+  div.className = "chat-item" + (cid === activeConvId ? " active-chat" : "");
   div.dataset.cid = cid;
   div.innerHTML = `
-    <div class="avatar">${avatarLetter(partner.name)}</div>
-    <div class="conv-info">
-      <div class="conv-name">${escHtml(partner.name)}</div>
-      <div class="conv-preview">${lastMsg ? escHtml(lastMsg.slice(0, 40)) : "Sohbet başladı"}</div>
+    <div class="av">${avatarLetter(partner.name)}</div>
+    <div class="chat-item-info">
+      <div class="chat-item-top">
+        <div class="chat-item-name">${esc(partner.name)}</div>
+        <div class="chat-item-time">${lastAt ? timeStr(lastAt) : ""}</div>
+      </div>
+      <div class="chat-item-preview">${lastMsg ? esc(lastMsg.slice(0,45)) : "Sohbet başladı"}</div>
     </div>
-    <div class="conv-time">${lastAt ? timeStr(lastAt) : ""}</div>
   `;
   div.addEventListener("click", () => openChat(partner));
   return div;
 }
 
 // ===== OPEN CHAT =====
-async function openChat(partner) {
+function openChat(partner) {
   activePartner = partner;
-  activeConvId = convId(currentUser.uid, partner.uid);
+  activeConvId  = convId(currentUser.uid, partner.uid);
 
-  // Mark active in sidebar
-  document.querySelectorAll(".conv-item").forEach(i => i.classList.remove("active"));
-  const found = document.querySelector(`.conv-item[data-cid="${activeConvId}"]`);
-  if (found) found.classList.add("active");
+  document.getElementById("chatAv").textContent    = avatarLetter(partner.name);
+  document.getElementById("chatName").textContent   = partner.name;
 
-  // Build chat UI
-  const chatArea = document.getElementById("chatArea");
-  chatArea.innerHTML = `
-    <div class="chat-header">
-      <div class="avatar large">${avatarLetter(partner.name)}</div>
-      <div class="chat-header-info">
-        <div class="chat-header-name">${escHtml(partner.name)}</div>
-        <div class="chat-header-phone">${escHtml(partner.phone)}</div>
-      </div>
-      <div class="online-dot"></div>
-    </div>
-    <div class="messages-container" id="messagesContainer"></div>
-    <div class="chat-input-area">
-      <div class="msg-textarea-wrap">
-        <textarea id="msgInput" rows="1" placeholder="Mesaj yaz..."></textarea>
-      </div>
-      <button class="btn-send" id="sendBtn"><i class="fa-solid fa-paper-plane"></i></button>
-    </div>
-  `;
-
-  // Auto-resize textarea
-  const textarea = document.getElementById("msgInput");
-  textarea.addEventListener("input", () => {
-    textarea.style.height = "auto";
-    textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
-  });
-  textarea.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-
-  document.getElementById("sendBtn").addEventListener("click", sendMessage);
-
-  // Listen to messages
+  showView("viewChat");
+  buildInputArea();
+  ensureConvIndex(partner);
   listenMessages();
 
-  // Ensure conversation index exists
-  ensureConvIndex(partner);
+  // highlight in list
+  document.querySelectorAll(".chat-item").forEach(i => {
+    i.classList.toggle("active-chat", i.dataset.cid === activeConvId);
+  });
 }
 
 function ensureConvIndex(partner) {
   const cid = convId(currentUser.uid, partner.uid);
-  const myRef = ref(db, `userConversations/${currentUser.uid}/${cid}`);
-  const theirRef = ref(db, `userConversations/${partner.uid}/${cid}`);
-  get(myRef).then(s => {
-    if (!s.exists()) set(myRef, { partnerUid: partner.uid, lastMsg: "", lastAt: Date.now() });
-  });
-  get(theirRef).then(s => {
-    if (!s.exists()) set(theirRef, { partnerUid: currentUser.uid, lastMsg: "", lastAt: Date.now() });
-  });
+  const myR  = ref(db,`userConversations/${currentUser.uid}/${cid}`);
+  const thR  = ref(db,`userConversations/${partner.uid}/${cid}`);
+  get(myR).then(s => { if (!s.exists()) set(myR,{partnerUid:partner.uid,lastMsg:"",lastAt:Date.now()}); });
+  get(thR).then(s => { if (!s.exists()) set(thR,{partnerUid:currentUser.uid,lastMsg:"",lastAt:Date.now()}); });
+}
+
+// ===== BACK BUTTON =====
+document.getElementById("backBtn").addEventListener("click", () => {
+  showView("viewChats");
+  if (msgListenerRef) { off(msgListenerRef); msgListenerRef = null; }
+});
+
+// ===== BUILD INPUT AREA =====
+function buildInputArea() {
+  const ta = document.getElementById("msgInput");
+  ta.value = "";
+  ta.style.height = "auto";
+
+  ta.oninput = () => {
+    ta.style.height = "auto";
+    ta.style.height = Math.min(ta.scrollHeight, 120) + "px";
+  };
+  ta.onkeydown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+  };
+
+  document.getElementById("sendBtn").onclick = sendMsg;
 }
 
 // ===== SEND MESSAGE =====
-async function sendMessage() {
-  const input = document.getElementById("msgInput");
-  if (!input) return;
-  const text = input.value.trim();
-  if (!text) return;
+async function sendMsg() {
+  const ta   = document.getElementById("msgInput");
+  const text = ta.value.trim();
+  if (!text || !activeConvId) return;
 
-  input.value = "";
-  input.style.height = "auto";
+  ta.value = "";
+  ta.style.height = "auto";
 
-  const msgRef = push(ref(db, `conversations/${activeConvId}/messages`));
-  const msgData = {
+  const msgRef = push(ref(db,`conversations/${activeConvId}/messages`));
+  const msg = {
     id: msgRef.key,
     text,
     senderUid: currentUser.uid,
@@ -293,197 +340,126 @@ async function sendMessage() {
   };
 
   try {
-    await set(msgRef, msgData);
-    // Update conversation index
+    await set(msgRef, msg);
     const preview = { lastMsg: text, lastAt: Date.now() };
-    await update(ref(db, `userConversations/${currentUser.uid}/${activeConvId}`), preview);
-    await update(ref(db, `userConversations/${activePartner.uid}/${activeConvId}`), preview);
-  } catch (e) {
-    showToast("Mesaj gönderilemedi", "error");
-  }
+    await update(ref(db,`userConversations/${currentUser.uid}/${activeConvId}`), preview);
+    await update(ref(db,`userConversations/${activePartner.uid}/${activeConvId}`), preview);
+  } catch(e) { toast("Gönderilemedi","err"); }
 }
 
 // ===== LISTEN MESSAGES =====
 function listenMessages() {
-  if (msgListener) {
-    off(ref(db, `conversations/${msgListener}/messages`));
-  }
-  msgListener = activeConvId;
-
-  const msgsRef = query(
-    ref(db, `conversations/${activeConvId}/messages`),
+  if (msgListenerRef) { off(msgListenerRef); }
+  msgListenerRef = query(
+    ref(db,`conversations/${activeConvId}/messages`),
     orderByChild("timestamp")
   );
 
-  onValue(msgsRef, (snap) => {
-    const container = document.getElementById("messagesContainer");
-    if (!container) return;
-    container.innerHTML = "";
+  onValue(msgListenerRef, snap => {
+    const area = document.getElementById("messagesArea");
+    if (!area) return;
+    area.innerHTML = "";
 
     const data = snap.val();
     if (!data) return;
 
     let lastDate = null;
     Object.values(data).forEach(msg => {
-      const msgDate = dateStr(msg.timestamp);
-      if (msgDate !== lastDate) {
-        lastDate = msgDate;
-        const divider = document.createElement("div");
-        divider.className = "date-divider";
-        divider.textContent = msgDate;
-        container.appendChild(divider);
+      const ds = dateStr(msg.timestamp);
+      if (ds !== lastDate) {
+        lastDate = ds;
+        const sep = document.createElement("div");
+        sep.className = "date-sep";
+        sep.textContent = ds;
+        area.appendChild(sep);
       }
-      container.appendChild(buildMsgEl(msg));
+      area.appendChild(buildBubble(msg));
     });
 
-    container.scrollTop = container.scrollHeight;
+    area.scrollTop = area.scrollHeight;
   });
 }
 
-// ===== BUILD MESSAGE ELEMENT =====
-function buildMsgEl(msg) {
+// ===== BUILD BUBBLE =====
+function buildBubble(msg) {
   const isMine = msg.senderUid === currentUser.uid;
-  const wrapper = document.createElement("div");
-  wrapper.className = `msg-wrapper ${isMine ? "mine" : "theirs"}`;
-  wrapper.dataset.msgId = msg.id;
+  const row = document.createElement("div");
+  row.className = `msg-row ${isMine ? "me" : "them"}`;
+  row.dataset.id = msg.id;
 
-  wrapper.innerHTML = `
-    <div class="msg-bubble" data-id="${msg.id}">
-      ${escHtml(msg.text)}
-    </div>
-    <div class="msg-meta">
+  row.innerHTML = `
+    <div class="bubble">${esc(msg.text)}</div>
+    <div class="msg-foot">
       <span class="msg-time">${timeStr(msg.timestamp)}</span>
       ${msg.edited ? '<span class="msg-edited">düzenlendi</span>' : ""}
     </div>
   `;
 
   if (isMine) {
-    wrapper.querySelector(".msg-bubble").addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      showContextMenu(e.clientX, e.clientY, msg.id, msg.text);
-    });
-    // Long press for mobile
+    const bubble = row.querySelector(".bubble");
+
+    // Long press → context sheet
     let pressTimer;
-    wrapper.querySelector(".msg-bubble").addEventListener("touchstart", (e) => {
+    bubble.addEventListener("touchstart", () => {
       pressTimer = setTimeout(() => {
-        const touch = e.touches[0];
-        showContextMenu(touch.clientX, touch.clientY, msg.id, msg.text);
-      }, 600);
+        selectedMsgId  = msg.id;
+        selectedMsgTxt = msg.text;
+        openSheet("ctxOverlay");
+      }, 500);
+    }, {passive:true});
+    bubble.addEventListener("touchend",  () => clearTimeout(pressTimer));
+    bubble.addEventListener("touchmove", () => clearTimeout(pressTimer));
+
+    // Click (desktop/fallback)
+    bubble.addEventListener("click", () => {
+      selectedMsgId  = msg.id;
+      selectedMsgTxt = msg.text;
+      openSheet("ctxOverlay");
     });
-    wrapper.querySelector(".msg-bubble").addEventListener("touchend", () => clearTimeout(pressTimer));
   }
 
-  return wrapper;
+  return row;
 }
 
-// ===== CONTEXT MENU =====
-const ctxMenu = document.getElementById("contextMenu");
-
-function showContextMenu(x, y, msgId, msgText) {
-  selectedMsgId = msgId;
-  document.getElementById("editInput").value = msgText;
-
-  // Position
-  const menuW = 160, menuH = 110;
-  const left = Math.min(x, window.innerWidth - menuW - 8);
-  const top = Math.min(y, window.innerHeight - menuH - 8);
-  ctxMenu.style.left = left + "px";
-  ctxMenu.style.top = top + "px";
-  ctxMenu.classList.add("show");
-}
-
-function hideContextMenu() {
-  ctxMenu.classList.remove("show");
-  selectedMsgId = null;
-}
-
-document.addEventListener("click", (e) => {
-  if (!ctxMenu.contains(e.target)) hideContextMenu();
+// ===== CONTEXT SHEET =====
+document.getElementById("bsClose").addEventListener("click",  () => closeSheet("ctxOverlay"));
+document.getElementById("bsEdit").addEventListener("click",   () => {
+  closeSheet("ctxOverlay");
+  document.getElementById("editInput").value = selectedMsgTxt || "";
+  setTimeout(() => openSheet("editOverlay"), 220);
 });
-
-document.getElementById("ctxClose").addEventListener("click", hideContextMenu);
-
-// Edit
-document.getElementById("ctxEdit").addEventListener("click", () => {
-  hideContextMenu();
-  openEditModal();
-});
-
-// Delete
-document.getElementById("ctxDelete").addEventListener("click", async () => {
-  hideContextMenu();
+document.getElementById("bsDelete").addEventListener("click", async () => {
+  closeSheet("ctxOverlay");
   if (!selectedMsgId || !activeConvId) return;
   const id = selectedMsgId;
-  if (!confirm("Bu mesajı silmek istediğine emin misin?")) return;
   try {
-    await remove(ref(db, `conversations/${activeConvId}/messages/${id}`));
-    showToast("Mesaj silindi", "success");
-  } catch (e) {
-    showToast("Silinemedi: " + e.message, "error");
-  }
+    await remove(ref(db,`conversations/${activeConvId}/messages/${id}`));
+    toast("Mesaj silindi","ok");
+  } catch(e) { toast("Silinemedi: "+e.message,"err"); }
 });
 
-// ===== EDIT MODAL =====
-const editModal = document.getElementById("editModal");
-
-function openEditModal() {
-  editModal.classList.add("show");
-  setTimeout(() => document.getElementById("editInput").focus(), 100);
-}
-
-function closeEditModal() {
-  editModal.classList.remove("show");
-}
-
-document.getElementById("editCancel").addEventListener("click", closeEditModal);
-editModal.addEventListener("click", (e) => {
-  if (e.target === editModal) closeEditModal();
-});
-
-document.getElementById("editSave").addEventListener("click", async () => {
-  const newText = document.getElementById("editInput").value.trim();
-  if (!newText) return showToast("Mesaj boş olamaz", "error");
-  if (!selectedMsgId && !editModal._editId) return;
-
-  const id = editModal._editId || selectedMsgId;
+// ===== EDIT SHEET =====
+document.getElementById("editCancel").addEventListener("click", () => closeSheet("editOverlay"));
+document.getElementById("editSave").addEventListener("click",   async () => {
+  const txt = document.getElementById("editInput").value.trim();
+  if (!txt) return toast("Mesaj boş olamaz","err");
+  if (!selectedMsgId || !activeConvId) return;
   try {
-    await update(ref(db, `conversations/${activeConvId}/messages/${id}`), {
-      text: newText,
-      edited: true,
-      editedAt: Date.now()
+    await update(ref(db,`conversations/${activeConvId}/messages/${selectedMsgId}`), {
+      text: txt, edited: true, editedAt: Date.now()
     });
-    closeEditModal();
-    showToast("Mesaj düzenlendi", "success");
-  } catch (e) {
-    showToast("Düzenlenemedi: " + e.message, "error");
-  }
+    closeSheet("editOverlay");
+    toast("Mesaj düzenlendi","ok");
+  } catch(e) { toast("Düzenlenemedi: "+e.message,"err"); }
 });
 
-// Store edit target
-document.getElementById("ctxEdit").addEventListener("click", () => {
-  editModal._editId = selectedMsgId;
-}, true);
-
-// ===== HTML ESCAPE =====
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-// ===== AUTO LOGIN =====
-(function init() {
-  const saved = localStorage.getItem("alimesaj_user");
-  if (saved) {
-    try {
-      currentUser = JSON.parse(saved);
-      initApp();
-    } catch (_) {
-      showScreen("registerScreen");
-    }
-  } else {
-    showScreen("registerScreen");
+// ===== ANDROID BACK BUTTON (PWA) =====
+window.addEventListener("popstate", () => {
+  const chatView = document.getElementById("viewChat");
+  if (chatView.classList.contains("active-view")) {
+    showView("viewChats");
+    if (msgListenerRef) { off(msgListenerRef); msgListenerRef = null; }
   }
-})();
+});
+// Push dummy state so back button works
+history.pushState(null, "", location.href);
