@@ -148,6 +148,60 @@ document.getElementById("loginBtn").addEventListener("click", async () => {
 document.getElementById("goLogin").addEventListener("click", () => showPage("loginPage"));
 document.getElementById("goRegister").addEventListener("click", () => showPage("registerPage"));
 
+// ===== ONESIGNAL BİLDİRİM =====
+const OS_APP_ID  = "36d8e7c0-5c78-4ee8-af96-c5b04e1cb7ee";
+const OS_API_KEY = "2gs3dpkbpeb6mjkv4ray2jcgr";
+
+async function saveOneSignalToken() {
+  try {
+    await new Promise(r => setTimeout(r, 2500)); // SDK yüklensin
+    if (typeof OneSignal === "undefined") return;
+
+    // Kullanıcıyı uid ile bağla
+    await OneSignal.login(currentUser.uid);
+
+    // Bildirim izni iste
+    await OneSignal.Notifications.requestPermission();
+
+    // Subscription ID'yi al ve Firebase'e kaydet
+    const subId = OneSignal.User.PushSubscription.id;
+    if (subId) {
+      await set(ref(db, `userTokens/${currentUser.uid}`), subId);
+      console.log("✅ OneSignal token kaydedildi:", subId);
+    }
+  } catch(e) {
+    console.log("OneSignal token hatası:", e);
+  }
+}
+
+async function sendPushNotification(partnerUid, senderName, text) {
+  try {
+    const snap = await get(ref(db, `userTokens/${partnerUid}`));
+    if (!snap.exists()) return;
+    const subscriptionId = snap.val();
+
+    await fetch("https://onesignal.com/api/v1/notifications", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Basic " + OS_API_KEY
+      },
+      body: JSON.stringify({
+        app_id: OS_APP_ID,
+        include_subscription_ids: [subscriptionId],
+        headings: { tr: senderName, en: senderName },
+        contents: { tr: text.slice(0, 100), en: text.slice(0, 100) },
+        priority: 10,
+        ttl: 86400,
+        android_channel_id: "alimesaj_msgs"
+      })
+    });
+    console.log("✅ Bildirim gönderildi →", partnerUid);
+  } catch(e) {
+    console.log("Bildirim gönderilemedi:", e);
+  }
+}
+
 // ===== INIT APP =====
 function initApp() {
   document.getElementById("myAv").textContent    = avatarLetter(currentUser.name);
@@ -155,6 +209,7 @@ function initApp() {
   showPage("appPage");
   showView("viewChats");
   loadConversations();
+  saveOneSignalToken(); // 🔔 token kaydet
 }
 
 // ===== LOGOUT =====
@@ -344,6 +399,9 @@ async function sendMsg() {
     const preview = { lastMsg: text, lastAt: Date.now() };
     await update(ref(db,`userConversations/${currentUser.uid}/${activeConvId}`), preview);
     await update(ref(db,`userConversations/${activePartner.uid}/${activeConvId}`), preview);
+
+    // 🔔 Karşı tarafa bildirim gönder
+    sendPushNotification(activePartner.uid, currentUser.name, text);
   } catch(e) { toast("Gönderilemedi","err"); }
 }
 
